@@ -2,12 +2,12 @@
 <p dir="auto" _msttexthash="1634520472" _msthash="202">在这个文件中，我从头开始实现了 LLAMA3，一次一个张量和矩阵乘法。<br _istranslated="1">此外，我要直接从 meta 为 LLAMA3 提供的模型文件加载张量，您需要在运行此文件之前下载权重。
 这是下载权重的官方链接：<a href="https://llama.meta.com/llama-downloads/" rel="nofollow" _istranslated="1">https://llama.meta.com/llama-downloads/</a></p>
 <div dir="auto">
-    <a target="_blank" rel="noopener noreferrer" href="/naklecha/llama3-from-scratch/blob/main/images/archi.png"><img src="/naklecha/llama3-from-scratch/raw/main/images/archi.png" style="max-width: 100%;"></a>
+    <a target="_blank" rel="noopener noreferrer" href="https://github.com/naklecha/llama3-from-scratch/blob/main/images/archi.png"><img src="https://github.com/naklecha/llama3-from-scratch/raw/main/images/archi.png" style="max-width: 100%;"></a>
 </div>
 <div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto" _msttexthash="8220914" _msthash="203">分词器</h2><a id="user-content-tokenizer" class="anchor" aria-label="永久链接：分词器" href="#tokenizer" _mstaria-label="416104" _msthash="204"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
 <p dir="auto" _msttexthash="397407920" _msthash="205">我不打算实现 BPE 分词器（但 Andrej Karpathy 有一个非常干净的实现）<br _istranslated="1">链接到他的实现：<a href="https://github.com/karpathy/minbpe" _istranslated="1">https://github.com/karpathy/minbpe</a></p>
 <div dir="auto">
-    <a target="_blank" rel="noopener noreferrer" href="/naklecha/llama3-from-scratch/blob/main/images/karpathyminbpe.png"><img src="/naklecha/llama3-from-scratch/raw/main/images/karpathyminbpe.png" width="600" style="max-width: 100%;"></a>
+    <a target="_blank" rel="noopener noreferrer" href="https://github.com/naklecha/llama3-from-scratch/blob/main/images/karpathyminbpe.png"><img src="https://github.com/naklecha/llama3-from-scratch/raw/main/images/karpathyminbpe.png" width="600" style="max-width: 100%;"></a>
 </div>
 <div class="highlight highlight-source-python notranslate position-relative overflow-auto" dir="auto"><pre><span class="pl-k">from</span> <span class="pl-s1">pathlib</span> <span class="pl-k">import</span> <span class="pl-v">Path</span>
 <span class="pl-k">import</span> <span class="pl-s1">tiktoken</span>
@@ -38,70 +38,20 @@
 )
 
 <span class="pl-s1">tokenizer</span>.<span class="pl-en">decode</span>(<span class="pl-s1">tokenizer</span>.<span class="pl-en">encode</span>(<span class="pl-s">"hello world!"</span>))</pre><div class="zeroclipboard-container">
-    <clipboard-copy aria-label="Copy" class="ClipboardButton btn btn-invisible js-clipboard-copy m-2 p-0 d-flex flex-justify-center flex-items-center" data-copy-feedback="Copied!" data-tooltip-direction="w" value="from pathlib import Path
-import tiktoken
-from tiktoken.load import load_tiktoken_bpe
-import torch
-import json
-import matplotlib.pyplot as plt
-
-tokenizer_path = &quot;Meta-Llama-3-8B/tokenizer.model&quot;
-special_tokens = [
-            &quot;<|begin_of_text|>&quot;,
-            &quot;<|end_of_text|>&quot;,
-            &quot;<|reserved_special_token_0|>&quot;,
-            &quot;<|reserved_special_token_1|>&quot;,
-            &quot;<|reserved_special_token_2|>&quot;,
-            &quot;<|reserved_special_token_3|>&quot;,
-            &quot;<|start_header_id|>&quot;,
-            &quot;<|end_header_id|>&quot;,
-            &quot;<|reserved_special_token_4|>&quot;,
-            &quot;<|eot_id|>&quot;,  # end of turn
-        ] + [f&quot;<|reserved_special_token_{i}|>&quot; for i in range(5, 256 - 5)]
-mergeable_ranks = load_tiktoken_bpe(tokenizer_path)
-tokenizer = tiktoken.Encoding(
-    name=Path(tokenizer_path).name,
-    pat_str=r&quot;(?i:'s|'t|'re|'ve|'m|'ll|'d)|[^\r\n\p{L}\p{N}]?\p{L}+|\p{N}{1,3}| ?[^\s\p{L}\p{N}]+[\r\n]*|\s*[\r\n]+|\s+(?!\S)|\s+&quot;,
-    mergeable_ranks=mergeable_ranks,
-    special_tokens={token: len(mergeable_ranks) + i for i, token in enumerate(special_tokens)},
-)
-
-tokenizer.decode(tokenizer.encode(&quot;hello world!&quot;))" tabindex="0" role="button">
-      <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-copy js-clipboard-copy-icon">
-    <path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"></path><path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path>
-</svg>
-      <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-check js-clipboard-check-icon color-fg-success d-none">
-    <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"></path>
-</svg>
-    </clipboard-copy>
+    
   </div></div>
 <div class="snippet-clipboard-content notranslate position-relative overflow-auto"><pre class="notranslate"><code>'hello world!'
 </code></pre><div class="zeroclipboard-container">
-    <clipboard-copy aria-label="Copy" class="ClipboardButton btn btn-invisible js-clipboard-copy m-2 p-0 d-flex flex-justify-center flex-items-center" data-copy-feedback="Copied!" data-tooltip-direction="w" value="'hello world!'" tabindex="0" role="button">
-      <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-copy js-clipboard-copy-icon">
-    <path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"></path><path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path>
-</svg>
-      <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-check js-clipboard-check-icon color-fg-success d-none">
-    <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"></path>
-</svg>
-    </clipboard-copy>
+   
   </div></div>
 <div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto" _msttexthash="18455333" _msthash="206">读取模型文件</h2><a id="user-content-reading-the-model-file" class="anchor" aria-label="永久链接：读取模型文件" href="#reading-the-model-file" _mstaria-label="820989" _msthash="207"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
 <p dir="auto" _msttexthash="664167673" _msthash="208">通常，阅读此内容取决于模型类的编写方式以及其中的变量名称。<br _istranslated="1">但是由于我们从头开始实现 LLAMA3，因此我们将一次读取一个 Tensor 文件。</p>
 <div dir="auto">
-    <a target="_blank" rel="noopener noreferrer" href="/naklecha/llama3-from-scratch/blob/main/images/model.png"><img src="/naklecha/llama3-from-scratch/raw/main/images/model.png" width="600" style="max-width: 100%;"></a>
+    <a target="_blank" rel="noopener noreferrer" href="https://github.com/naklecha/llama3-from-scratch/blob/main/images/model.png"><img src="https://github.com/naklecha/llama3-from-scratch/raw/main/images/model.png" width="600" style="max-width: 100%;"></a>
 </div>
 <div class="highlight highlight-source-python notranslate position-relative overflow-auto" dir="auto"><pre><span class="pl-s1">model</span> <span class="pl-c1">=</span> <span class="pl-s1">torch</span>.<span class="pl-en">load</span>(<span class="pl-s">"Meta-Llama-3-8B/consolidated.00.pth"</span>)
 <span class="pl-en">print</span>(<span class="pl-s1">json</span>.<span class="pl-en">dumps</span>(<span class="pl-en">list</span>(<span class="pl-s1">model</span>.<span class="pl-en">keys</span>())[:<span class="pl-c1">20</span>], <span class="pl-s1">indent</span><span class="pl-c1">=</span><span class="pl-c1">4</span>))</pre><div class="zeroclipboard-container">
-    <clipboard-copy aria-label="Copy" class="ClipboardButton btn btn-invisible js-clipboard-copy m-2 p-0 d-flex flex-justify-center flex-items-center" data-copy-feedback="Copied!" data-tooltip-direction="w" value="model = torch.load(&quot;Meta-Llama-3-8B/consolidated.00.pth&quot;)
-print(json.dumps(list(model.keys())[:20], indent=4))" tabindex="0" role="button">
-      <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-copy js-clipboard-copy-icon">
-    <path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"></path><path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path>
-</svg>
-      <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-check js-clipboard-check-icon color-fg-success d-none">
-    <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"></path>
-</svg>
-    </clipboard-copy>
+   
   </div></div>
 <div class="snippet-clipboard-content notranslate position-relative overflow-auto"><pre class="notranslate"><code>[
     "tok_embeddings.weight",
@@ -126,49 +76,12 @@ print(json.dumps(list(model.keys())[:20], indent=4))" tabindex="0" role="button"
     "layers.2.attention.wq.weight"
 ]
 </code></pre><div class="zeroclipboard-container">
-    <clipboard-copy aria-label="Copy" class="ClipboardButton btn btn-invisible js-clipboard-copy m-2 p-0 d-flex flex-justify-center flex-items-center" data-copy-feedback="Copied!" data-tooltip-direction="w" value="[
-    &quot;tok_embeddings.weight&quot;,
-    &quot;layers.0.attention.wq.weight&quot;,
-    &quot;layers.0.attention.wk.weight&quot;,
-    &quot;layers.0.attention.wv.weight&quot;,
-    &quot;layers.0.attention.wo.weight&quot;,
-    &quot;layers.0.feed_forward.w1.weight&quot;,
-    &quot;layers.0.feed_forward.w3.weight&quot;,
-    &quot;layers.0.feed_forward.w2.weight&quot;,
-    &quot;layers.0.attention_norm.weight&quot;,
-    &quot;layers.0.ffn_norm.weight&quot;,
-    &quot;layers.1.attention.wq.weight&quot;,
-    &quot;layers.1.attention.wk.weight&quot;,
-    &quot;layers.1.attention.wv.weight&quot;,
-    &quot;layers.1.attention.wo.weight&quot;,
-    &quot;layers.1.feed_forward.w1.weight&quot;,
-    &quot;layers.1.feed_forward.w3.weight&quot;,
-    &quot;layers.1.feed_forward.w2.weight&quot;,
-    &quot;layers.1.attention_norm.weight&quot;,
-    &quot;layers.1.ffn_norm.weight&quot;,
-    &quot;layers.2.attention.wq.weight&quot;
-]" tabindex="0" role="button">
-      <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-copy js-clipboard-copy-icon">
-    <path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"></path><path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path>
-</svg>
-      <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-check js-clipboard-check-icon color-fg-success d-none">
-    <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"></path>
-</svg>
-    </clipboard-copy>
+     
   </div></div>
 <div class="highlight highlight-source-python notranslate position-relative overflow-auto" dir="auto"><pre><span class="pl-k">with</span> <span class="pl-en">open</span>(<span class="pl-s">"Meta-Llama-3-8B/params.json"</span>, <span class="pl-s">"r"</span>) <span class="pl-k">as</span> <span class="pl-s1">f</span>:
     <span class="pl-s1">config</span> <span class="pl-c1">=</span> <span class="pl-s1">json</span>.<span class="pl-en">load</span>(<span class="pl-s1">f</span>)
 <span class="pl-s1">config</span></pre><div class="zeroclipboard-container">
-    <clipboard-copy aria-label="Copy" class="ClipboardButton btn btn-invisible js-clipboard-copy m-2 p-0 d-flex flex-justify-center flex-items-center" data-copy-feedback="Copied!" data-tooltip-direction="w" value="with open(&quot;Meta-Llama-3-8B/params.json&quot;, &quot;r&quot;) as f:
-    config = json.load(f)
-config" tabindex="0" role="button">
-      <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-copy js-clipboard-copy-icon">
-    <path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"></path><path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path>
-</svg>
-      <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-check js-clipboard-check-icon color-fg-success d-none">
-    <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"></path>
-</svg>
-    </clipboard-copy>
+    
   </div></div>
 <div class="snippet-clipboard-content notranslate position-relative overflow-auto"><pre class="notranslate"><code>{'dim': 4096,
  'n_layers': 32,
@@ -180,22 +93,7 @@ config" tabindex="0" role="button">
  'norm_eps': 1e-05,
  'rope_theta': 500000.0}
 </code></pre><div class="zeroclipboard-container">
-    <clipboard-copy aria-label="Copy" class="ClipboardButton btn btn-invisible js-clipboard-copy m-2 p-0 d-flex flex-justify-center flex-items-center" data-copy-feedback="Copied!" data-tooltip-direction="w" value="{'dim': 4096,
- 'n_layers': 32,
- 'n_heads': 32,
- 'n_kv_heads': 8,
- 'vocab_size': 128256,
- 'multiple_of': 1024,
- 'ffn_dim_multiplier': 1.3,
- 'norm_eps': 1e-05,
- 'rope_theta': 500000.0}" tabindex="0" role="button">
-      <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-copy js-clipboard-copy-icon">
-    <path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"></path><path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path>
-</svg>
-      <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-check js-clipboard-check-icon color-fg-success d-none">
-    <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"></path>
-</svg>
-    </clipboard-copy>
+    
   </div></div>
 <div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto" _msttexthash="126653553" _msthash="209">我们使用此配置来推断有关模型的细节，例如</h2><a id="user-content-we-use-this-config-to-infer-details-about-the-model-like" class="anchor" aria-label="永久链接：我们使用这个配置来推断有关模型的细节，例如" href="#we-use-this-config-to-infer-details-about-the-model-like" _mstaria-label="2671344" _msthash="210"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
 <ol dir="auto">
@@ -212,27 +110,12 @@ config" tabindex="0" role="button">
 <span class="pl-s1">ffn_dim_multiplier</span> <span class="pl-c1">=</span> <span class="pl-s1">config</span>[<span class="pl-s">"ffn_dim_multiplier"</span>]
 <span class="pl-s1">norm_eps</span> <span class="pl-c1">=</span> <span class="pl-s1">config</span>[<span class="pl-s">"norm_eps"</span>]
 <span class="pl-s1">rope_theta</span> <span class="pl-c1">=</span> <span class="pl-s1">torch</span>.<span class="pl-en">tensor</span>(<span class="pl-s1">config</span>[<span class="pl-s">"rope_theta"</span>])</pre><div class="zeroclipboard-container">
-    <clipboard-copy aria-label="Copy" class="ClipboardButton btn btn-invisible js-clipboard-copy m-2 p-0 d-flex flex-justify-center flex-items-center" data-copy-feedback="Copied!" data-tooltip-direction="w" value="dim = config[&quot;dim&quot;]
-n_layers = config[&quot;n_layers&quot;]
-n_heads = config[&quot;n_heads&quot;]
-n_kv_heads = config[&quot;n_kv_heads&quot;]
-vocab_size = config[&quot;vocab_size&quot;]
-multiple_of = config[&quot;multiple_of&quot;]
-ffn_dim_multiplier = config[&quot;ffn_dim_multiplier&quot;]
-norm_eps = config[&quot;norm_eps&quot;]
-rope_theta = torch.tensor(config[&quot;rope_theta&quot;])" tabindex="0" role="button">
-      <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-copy js-clipboard-copy-icon">
-    <path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"></path><path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path>
-</svg>
-      <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-check js-clipboard-check-icon color-fg-success d-none">
-    <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"></path>
-</svg>
-    </clipboard-copy>
+     
   </div></div>
 <div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto" _msttexthash="30481347" _msthash="214">将文本转换为标记</h2><a id="user-content-converting-text-to-tokens" class="anchor" aria-label="固定链接：将文本转换为标记" href="#converting-text-to-tokens" _mstaria-label="1015976" _msthash="215"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
 <p dir="auto" _msttexthash="209508403" _msthash="216">在这里，我们使用 TikToken（我认为是一个 OpenAI 库）作为分词器</p>
 <div dir="auto">
-    <a target="_blank" rel="noopener noreferrer" href="/naklecha/llama3-from-scratch/blob/main/images/tokens.png"><img src="/naklecha/llama3-from-scratch/raw/main/images/tokens.png" width="600" style="max-width: 100%;"></a>
+    <a target="_blank" rel="noopener noreferrer" href="https://github.com/naklecha/llama3-from-scratch/blob/main/images/tokens.png"><img src="https://github.com/naklecha/llama3-from-scratch/raw/main/images/tokens.png" width="600" style="max-width: 100%;"></a>
 </div>
 <div class="highlight highlight-source-python notranslate position-relative overflow-auto" dir="auto"><pre><span class="pl-s1">prompt</span> <span class="pl-c1">=</span> <span class="pl-s">"the answer to the ultimate question of life, the universe, and everything is "</span>
 <span class="pl-s1">tokens</span> <span class="pl-c1">=</span> [<span class="pl-c1">128000</span>] <span class="pl-c1">+</span> <span class="pl-s1">tokenizer</span>.<span class="pl-en">encode</span>(<span class="pl-s1">prompt</span>)
@@ -240,121 +123,58 @@ rope_theta = torch.tensor(config[&quot;rope_theta&quot;])" tabindex="0" role="bu
 <span class="pl-s1">tokens</span> <span class="pl-c1">=</span> <span class="pl-s1">torch</span>.<span class="pl-en">tensor</span>(<span class="pl-s1">tokens</span>)
 <span class="pl-s1">prompt_split_as_tokens</span> <span class="pl-c1">=</span> [<span class="pl-s1">tokenizer</span>.<span class="pl-en">decode</span>([<span class="pl-s1">token</span>.<span class="pl-en">item</span>()]) <span class="pl-k">for</span> <span class="pl-s1">token</span> <span class="pl-c1">in</span> <span class="pl-s1">tokens</span>]
 <span class="pl-en">print</span>(<span class="pl-s1">prompt_split_as_tokens</span>)</pre><div class="zeroclipboard-container">
-    <clipboard-copy aria-label="Copy" class="ClipboardButton btn btn-invisible js-clipboard-copy m-2 p-0 d-flex flex-justify-center flex-items-center" data-copy-feedback="Copied!" data-tooltip-direction="w" value="prompt = &quot;the answer to the ultimate question of life, the universe, and everything is &quot;
-tokens = [128000] + tokenizer.encode(prompt)
-print(tokens)
-tokens = torch.tensor(tokens)
-prompt_split_as_tokens = [tokenizer.decode([token.item()]) for token in tokens]
-print(prompt_split_as_tokens)" tabindex="0" role="button">
-      <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-copy js-clipboard-copy-icon">
-    <path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"></path><path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path>
-</svg>
-      <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-check js-clipboard-check-icon color-fg-success d-none">
-    <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"></path>
-</svg>
-    </clipboard-copy>
+   
   </div></div>
 <div class="snippet-clipboard-content notranslate position-relative overflow-auto"><pre class="notranslate"><code>[128000, 1820, 4320, 311, 279, 17139, 3488, 315, 2324, 11, 279, 15861, 11, 323, 4395, 374, 220]
 ['&lt;|begin_of_text|&gt;', 'the', ' answer', ' to', ' the', ' ultimate', ' question', ' of', ' life', ',', ' the', ' universe', ',', ' and', ' everything', ' is', ' ']
 </code></pre><div class="zeroclipboard-container">
-    <clipboard-copy aria-label="Copy" class="ClipboardButton btn btn-invisible js-clipboard-copy m-2 p-0 d-flex flex-justify-center flex-items-center" data-copy-feedback="Copied!" data-tooltip-direction="w" value="[128000, 1820, 4320, 311, 279, 17139, 3488, 315, 2324, 11, 279, 15861, 11, 323, 4395, 374, 220]
-['<|begin_of_text|>', 'the', ' answer', ' to', ' the', ' ultimate', ' question', ' of', ' life', ',', ' the', ' universe', ',', ' and', ' everything', ' is', ' ']" tabindex="0" role="button">
-      <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-copy js-clipboard-copy-icon">
-    <path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"></path><path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path>
-</svg>
-      <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-check js-clipboard-check-icon color-fg-success d-none">
-    <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"></path>
-</svg>
-    </clipboard-copy>
+    
   </div></div>
 <div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto" _msttexthash="31443386" _msthash="217">将 Token 转换为其嵌入</h2><a id="user-content-converting-tokens-to-their-embedding" class="anchor" aria-label="永久链接：将 token 转换为其嵌入" href="#converting-tokens-to-their-embedding" _mstaria-label="1592695" _msthash="218"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
 <p dir="auto" _msttexthash="1591982977" _msthash="219">对不起，这是代码库中唯一使用内置神经网络模块<br _istranslated="1">的部分，所以我们的 [17x1] 令牌现在是 [17x4096]，即 17 个长度为 4096 <br _istranslated="1"> 的嵌入（每个令牌一个）<br _istranslated="1">注意：跟踪形状，它使理解所有内容变得更加容易</p>
 <div dir="auto">
-    <a target="_blank" rel="noopener noreferrer" href="/naklecha/llama3-from-scratch/blob/main/images/embeddings.png"><img src="/naklecha/llama3-from-scratch/raw/main/images/embeddings.png" width="600" style="max-width: 100%;"></a>
+    <a target="_blank" rel="noopener noreferrer" href="https://github.com/naklecha/llama3-from-scratch/blob/main/images/embeddings.png"><img src="https://github.com/naklecha/llama3-from-scratch/raw/main/images/embeddings.png" width="600" style="max-width: 100%;"></a>
 </div>
 <div class="highlight highlight-source-python notranslate position-relative overflow-auto" dir="auto"><pre><span class="pl-s1">embedding_layer</span> <span class="pl-c1">=</span> <span class="pl-s1">torch</span>.<span class="pl-s1">nn</span>.<span class="pl-v">Embedding</span>(<span class="pl-s1">vocab_size</span>, <span class="pl-s1">dim</span>)
 <span class="pl-s1">embedding_layer</span>.<span class="pl-s1">weight</span>.<span class="pl-s1">data</span>.<span class="pl-en">copy_</span>(<span class="pl-s1">model</span>[<span class="pl-s">"tok_embeddings.weight"</span>])
 <span class="pl-s1">token_embeddings_unnormalized</span> <span class="pl-c1">=</span> <span class="pl-en">embedding_layer</span>(<span class="pl-s1">tokens</span>).<span class="pl-en">to</span>(<span class="pl-s1">torch</span>.<span class="pl-s1">bfloat16</span>)
 <span class="pl-s1">token_embeddings_unnormalized</span>.<span class="pl-s1">shape</span></pre><div class="zeroclipboard-container">
-    <clipboard-copy aria-label="Copy" class="ClipboardButton btn btn-invisible js-clipboard-copy m-2 p-0 d-flex flex-justify-center flex-items-center" data-copy-feedback="Copied!" data-tooltip-direction="w" value="embedding_layer = torch.nn.Embedding(vocab_size, dim)
-embedding_layer.weight.data.copy_(model[&quot;tok_embeddings.weight&quot;])
-token_embeddings_unnormalized = embedding_layer(tokens).to(torch.bfloat16)
-token_embeddings_unnormalized.shape" tabindex="0" role="button">
-      <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-copy js-clipboard-copy-icon">
-    <path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"></path><path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path>
-</svg>
-      <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-check js-clipboard-check-icon color-fg-success d-none">
-    <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"></path>
-</svg>
-    </clipboard-copy>
+    
   </div></div>
 <div class="snippet-clipboard-content notranslate position-relative overflow-auto"><pre class="notranslate"><code>torch.Size([17, 4096])
 </code></pre><div class="zeroclipboard-container">
-    <clipboard-copy aria-label="Copy" class="ClipboardButton btn btn-invisible js-clipboard-copy m-2 p-0 d-flex flex-justify-center flex-items-center" data-copy-feedback="Copied!" data-tooltip-direction="w" value="torch.Size([17, 4096])" tabindex="0" role="button">
-      <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-copy js-clipboard-copy-icon">
-    <path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"></path><path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path>
-</svg>
-      <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-check js-clipboard-check-icon color-fg-success d-none">
-    <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"></path>
-</svg>
-    </clipboard-copy>
+    
   </div></div>
 <div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto" _msttexthash="104921466" _msthash="220">然后，我们使用 RMS 归一化对嵌入进行归一化</h2><a id="user-content-we-then-normalize-the-embedding-using-rms-normalization" class="anchor" aria-label="永久链接：然后我们使用 rms 归一化对嵌入进行归一化" href="#we-then-normalize-the-embedding-using-rms-normalization" _mstaria-label="2876900" _msthash="221"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
 <p dir="auto" _msttexthash="1163759649" _msthash="222">请注意，在此步骤之后，形状不会改变，值只是要记住的标准化<br _istranslated="1">事情，我们需要一个norm_eps（来自 config），因为我们不想意外地将 rms 设置为 0 并除以 0，<br _istranslated="1">公式如下：</p>
 <div dir="auto">
-    <a target="_blank" rel="noopener noreferrer" href="/naklecha/llama3-from-scratch/blob/main/images/rms.png"><img src="/naklecha/llama3-from-scratch/raw/main/images/rms.png" width="600" style="max-width: 100%;"></a>
+    <a target="_blank" rel="noopener noreferrer" href="https://github.com/naklecha/llama3-from-scratch/blob/main/images/rms.png"><img src="https://github.com/naklecha/llama3-from-scratch/raw/main/images/rms.png" width="600" style="max-width: 100%;"></a>
 </div>
 <div class="highlight highlight-source-python notranslate position-relative overflow-auto" dir="auto"><pre><span class="pl-c"># def rms_norm(tensor, norm_weights):</span>
 <span class="pl-c">#     rms = (tensor.pow(2).mean(-1, keepdim=True) + norm_eps)**0.5</span>
 <span class="pl-c">#     return tensor * (norm_weights / rms)</span>
 <span class="pl-k">def</span> <span class="pl-en">rms_norm</span>(<span class="pl-s1">tensor</span>, <span class="pl-s1">norm_weights</span>):
     <span class="pl-k">return</span> (<span class="pl-s1">tensor</span> <span class="pl-c1">*</span> <span class="pl-s1">torch</span>.<span class="pl-en">rsqrt</span>(<span class="pl-s1">tensor</span>.<span class="pl-en">pow</span>(<span class="pl-c1">2</span>).<span class="pl-en">mean</span>(<span class="pl-c1">-</span><span class="pl-c1">1</span>, <span class="pl-s1">keepdim</span><span class="pl-c1">=</span><span class="pl-c1">True</span>) <span class="pl-c1">+</span> <span class="pl-s1">norm_eps</span>)) <span class="pl-c1">*</span> <span class="pl-s1">norm_weights</span></pre><div class="zeroclipboard-container">
-    <clipboard-copy aria-label="Copy" class="ClipboardButton btn btn-invisible js-clipboard-copy m-2 p-0 d-flex flex-justify-center flex-items-center" data-copy-feedback="Copied!" data-tooltip-direction="w" value="# def rms_norm(tensor, norm_weights):
-#     rms = (tensor.pow(2).mean(-1, keepdim=True) + norm_eps)**0.5
-#     return tensor * (norm_weights / rms)
-def rms_norm(tensor, norm_weights):
-    return (tensor * torch.rsqrt(tensor.pow(2).mean(-1, keepdim=True) + norm_eps)) * norm_weights" tabindex="0" role="button">
-      <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-copy js-clipboard-copy-icon">
-    <path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"></path><path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path>
-</svg>
-      <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-check js-clipboard-check-icon color-fg-success d-none">
-    <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"></path>
-</svg>
-    </clipboard-copy>
+    
   </div></div>
 <div class="markdown-heading" dir="auto"><h1 tabindex="-1" class="heading-element" dir="auto" _msttexthash="34428082" _msthash="223">构建 transformer 的第一层</h1><a id="user-content-building-the-first-first-layer-of-the-transformer" class="anchor" aria-label="永久链接：构建 transformer 的第一层" href="#building-the-first-first-layer-of-the-transformer" _mstaria-label="2370108" _msthash="224"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
 <div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto" _msttexthash="7498751" _msthash="225">正常化</h3><a id="user-content-normalization" class="anchor" aria-label="永久链接：规范化" href="#normalization" _mstaria-label="569777" _msthash="226"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
 <p dir="auto" _msttexthash="816538320" _msthash="227">无论如何，你会看到我从模型 dict 中访问 layer.0（这是第一层），<br _istranslated="1">所以在规范化后，我们的形状仍然 [17x4096] 与嵌入相同，但已规范化</p>
 <div dir="auto">
-    <a target="_blank" rel="noopener noreferrer" href="/naklecha/llama3-from-scratch/blob/main/images/norm.png"><img src="/naklecha/llama3-from-scratch/raw/main/images/norm.png" width="600" style="max-width: 100%;"></a>
+    <a target="_blank" rel="noopener noreferrer" href="https://github.com/naklecha/llama3-from-scratch/blob/main/images/norm.png"><img src="https://github.com/naklecha/llama3-from-scratch/raw/main/images/norm.png" width="600" style="max-width: 100%;"></a>
 </div>
 <div class="highlight highlight-source-python notranslate position-relative overflow-auto" dir="auto"><pre><span class="pl-s1">token_embeddings</span> <span class="pl-c1">=</span> <span class="pl-en">rms_norm</span>(<span class="pl-s1">token_embeddings_unnormalized</span>, <span class="pl-s1">model</span>[<span class="pl-s">"layers.0.attention_norm.weight"</span>])
 <span class="pl-s1">token_embeddings</span>.<span class="pl-s1">shape</span></pre><div class="zeroclipboard-container">
-    <clipboard-copy aria-label="Copy" class="ClipboardButton btn btn-invisible js-clipboard-copy m-2 p-0 d-flex flex-justify-center flex-items-center" data-copy-feedback="Copied!" data-tooltip-direction="w" value="token_embeddings = rms_norm(token_embeddings_unnormalized, model[&quot;layers.0.attention_norm.weight&quot;])
-token_embeddings.shape" tabindex="0" role="button">
-      <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-copy js-clipboard-copy-icon">
-    <path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"></path><path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path>
-</svg>
-      <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-check js-clipboard-check-icon color-fg-success d-none">
-    <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"></path>
-</svg>
-    </clipboard-copy>
+    
   </div></div>
 <div class="snippet-clipboard-content notranslate position-relative overflow-auto"><pre class="notranslate"><code>torch.Size([17, 4096])
 </code></pre><div class="zeroclipboard-container">
-    <clipboard-copy aria-label="Copy" class="ClipboardButton btn btn-invisible js-clipboard-copy m-2 p-0 d-flex flex-justify-center flex-items-center" data-copy-feedback="Copied!" data-tooltip-direction="w" value="torch.Size([17, 4096])" tabindex="0" role="button">
-      <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-copy js-clipboard-copy-icon">
-    <path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"></path><path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path>
-</svg>
-      <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-check js-clipboard-check-icon color-fg-success d-none">
-    <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"></path>
-</svg>
-    </clipboard-copy>
+    
   </div></div>
 <div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto" _msttexthash="24457524" _msthash="228">从零开始实施的 Attention</h3><a id="user-content-attention-implemented-from-scratch" class="anchor" aria-label="永久链接：从零开始实施注意力" href="#attention-implemented-from-scratch" _mstaria-label="1530464" _msthash="229"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
 <p dir="auto" _msttexthash="50737128" _msthash="230">让我们加载 transformer 第一层的 attention heads</p>
 <div dir="auto">
-    <a target="_blank" rel="noopener noreferrer" href="/naklecha/llama3-from-scratch/blob/main/images/qkv.png"><img src="/naklecha/llama3-from-scratch/raw/main/images/qkv.png" width="600" style="max-width: 100%;"></a>
+    <a target="_blank" rel="noopener noreferrer" href="https://github.com/naklecha/llama3-from-scratch/blob/main/images/qkv.png"><img src="https://github.com/naklecha/llama3-from-scratch/raw/main/images/qkv.png" width="600" style="max-width: 100%;"></a>
 </div>
 <br>
 <p dir="auto" _msttexthash="3459772017" _msthash="231">&gt;当我们从模型中加载查询、键、值和输出向量时，我们注意到形状是 [4096x4096]、[1024x4096]、[1024x4096]、[4096x4096] <br _istranslated="1"> &gt;乍一看这很奇怪，因为理想情况下，我们希望每个头的每个 q、k、v 和 o 单独&gt;<br _istranslated="1">代码的作者将它们捆绑在一起，因为它很容易，它有助于比较注意力头乘法。<br _istranslated="1"> &gt;我要解开所有东西......</p>
