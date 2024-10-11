@@ -696,62 +696,12 @@ q_per_token_as_complex_numbers.shape" tabindex="0" role="button">
     <span class="pl-s1">w3</span> <span class="pl-c1">=</span> <span class="pl-s1">model</span>[<span class="pl-s">f"layers.<span class="pl-s1"><span class="pl-kos">{</span><span class="pl-s1">layer</span><span class="pl-kos">}</span></span>.feed_forward.w3.weight"</span>]
     <span class="pl-s1">output_after_feedforward</span> <span class="pl-c1">=</span> <span class="pl-s1">torch</span>.<span class="pl-en">matmul</span>(<span class="pl-s1">torch</span>.<span class="pl-s1">functional</span>.<span class="pl-v">F</span>.<span class="pl-en">silu</span>(<span class="pl-s1">torch</span>.<span class="pl-en">matmul</span>(<span class="pl-s1">embedding_after_edit_normalized</span>, <span class="pl-s1">w1</span>.<span class="pl-v">T</span>)) <span class="pl-c1">*</span> <span class="pl-s1">torch</span>.<span class="pl-en">matmul</span>(<span class="pl-s1">embedding_after_edit_normalized</span>, <span class="pl-s1">w3</span>.<span class="pl-v">T</span>), <span class="pl-s1">w2</span>.<span class="pl-v">T</span>)
     <span class="pl-s1">final_embedding</span> <span class="pl-c1">=</span> <span class="pl-s1">embedding_after_edit</span><span class="pl-c1">+</span><span class="pl-s1">output_after_feedforward</span></pre><div class="zeroclipboard-container">
-    <clipboard-copy aria-label="Copy" class="ClipboardButton btn btn-invisible js-clipboard-copy m-2 p-0 d-flex flex-justify-center flex-items-center" data-copy-feedback="Copied!" data-tooltip-direction="w" value="final_embedding = token_embeddings_unnormalized
-for layer in range(n_layers):
-    qkv_attention_store = []
-    layer_embedding_norm = rms_norm(final_embedding, model[f&quot;layers.{layer}.attention_norm.weight&quot;])
-    q_layer = model[f&quot;layers.{layer}.attention.wq.weight&quot;]
-    q_layer = q_layer.view(n_heads, q_layer.shape[0] // n_heads, dim)
-    k_layer = model[f&quot;layers.{layer}.attention.wk.weight&quot;]
-    k_layer = k_layer.view(n_kv_heads, k_layer.shape[0] // n_kv_heads, dim)
-    v_layer = model[f&quot;layers.{layer}.attention.wv.weight&quot;]
-    v_layer = v_layer.view(n_kv_heads, v_layer.shape[0] // n_kv_heads, dim)
-    w_layer = model[f&quot;layers.{layer}.attention.wo.weight&quot;]
-    for head in range(n_heads):
-        q_layer_head = q_layer[head]
-        k_layer_head = k_layer[head//4]
-        v_layer_head = v_layer[head//4]
-        q_per_token = torch.matmul(layer_embedding_norm, q_layer_head.T)
-        k_per_token = torch.matmul(layer_embedding_norm, k_layer_head.T)
-        v_per_token = torch.matmul(layer_embedding_norm, v_layer_head.T)
-        q_per_token_split_into_pairs = q_per_token.float().view(q_per_token.shape[0], -1, 2)
-        q_per_token_as_complex_numbers = torch.view_as_complex(q_per_token_split_into_pairs)
-        q_per_token_split_into_pairs_rotated = torch.view_as_real(q_per_token_as_complex_numbers * freqs_cis)
-        q_per_token_rotated = q_per_token_split_into_pairs_rotated.view(q_per_token.shape)
-        k_per_token_split_into_pairs = k_per_token.float().view(k_per_token.shape[0], -1, 2)
-        k_per_token_as_complex_numbers = torch.view_as_complex(k_per_token_split_into_pairs)
-        k_per_token_split_into_pairs_rotated = torch.view_as_real(k_per_token_as_complex_numbers * freqs_cis)
-        k_per_token_rotated = k_per_token_split_into_pairs_rotated.view(k_per_token.shape)
-        qk_per_token = torch.matmul(q_per_token_rotated, k_per_token_rotated.T)/(128)**0.5
-        mask = torch.full((len(token_embeddings_unnormalized), len(token_embeddings_unnormalized)), float(&quot;-inf&quot;))
-        mask = torch.triu(mask, diagonal=1)
-        qk_per_token_after_masking = qk_per_token + mask
-        qk_per_token_after_masking_after_softmax = torch.nn.functional.softmax(qk_per_token_after_masking, dim=1).to(torch.bfloat16)
-        qkv_attention = torch.matmul(qk_per_token_after_masking_after_softmax, v_per_token)
-        qkv_attention_store.append(qkv_attention)
-
-    stacked_qkv_attention = torch.cat(qkv_attention_store, dim=-1)
-    w_layer = model[f&quot;layers.{layer}.attention.wo.weight&quot;]
-    embedding_delta = torch.matmul(stacked_qkv_attention, w_layer.T)
-    embedding_after_edit = final_embedding + embedding_delta
-    embedding_after_edit_normalized = rms_norm(embedding_after_edit, model[f&quot;layers.{layer}.ffn_norm.weight&quot;])
-    w1 = model[f&quot;layers.{layer}.feed_forward.w1.weight&quot;]
-    w2 = model[f&quot;layers.{layer}.feed_forward.w2.weight&quot;]
-    w3 = model[f&quot;layers.{layer}.feed_forward.w3.weight&quot;]
-    output_after_feedforward = torch.matmul(torch.functional.F.silu(torch.matmul(embedding_after_edit_normalized, w1.T)) * torch.matmul(embedding_after_edit_normalized, w3.T), w2.T)
-    final_embedding = embedding_after_edit+output_after_feedforward" tabindex="0" role="button">
-      <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-copy js-clipboard-copy-icon">
-    <path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"></path><path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path>
-</svg>
-      <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-check js-clipboard-check-icon color-fg-success d-none">
-    <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"></path>
-</svg>
-    </clipboard-copy>
+    
   </div></div>
 <div class="markdown-heading" dir="auto"><h1 tabindex="-1" class="heading-element" dir="auto" _msttexthash="174659277" _msthash="305">我们现在有了最终的嵌入，这是模型对下一个 Token 的最佳猜测</h1><a id="user-content-we-now-have-the-final-embedding-the-best-guess-the-model-could-make-about-the-next-token" class="anchor" aria-label="永久链接：我们现在有了最终的嵌入，这是模型对下一个 token 的最佳猜测" href="#we-now-have-the-final-embedding-the-best-guess-the-model-could-make-about-the-next-token" _mstaria-label="5505214" _msthash="306"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
 <p dir="auto" _msttexthash="294020324" _msthash="307">嵌入的形状与常规标记嵌入相同 [17x4096]，其中 17 是标记的数量，4096 是嵌入的 Dim</p>
 <div dir="auto">
-    <a target="_blank" rel="noopener noreferrer" href="/naklecha/llama3-from-scratch/blob/main/images/last_norm.png"><img src="/naklecha/llama3-from-scratch/raw/main/images/last_norm.png" width="600px" style="max-width: 100%;"></a>
+    <a target="_blank" rel="noopener noreferrer" href="https://github.com/naklecha/llama3-from-scratch/blob/main/images/last_norm.png"><img src="https://github.com/naklecha/llama3-from-scratch/raw/main/images/last_norm.png" width="600px" style="max-width: 100%;"></a>
 </div>
 <div class="highlight highlight-source-python notranslate position-relative overflow-auto" dir="auto"><pre><span class="pl-s1">final_embedding</span> <span class="pl-c1">=</span> <span class="pl-en">rms_norm</span>(<span class="pl-s1">final_embedding</span>, <span class="pl-s1">model</span>[<span class="pl-s">"norm.weight"</span>])
 <span class="pl-s1">final_embedding</span>.<span class="pl-s1">shape</span></pre><div class="zeroclipboard-container">
@@ -778,7 +728,7 @@ final_embedding.shape" tabindex="0" role="button">
   </div></div>
 <div class="markdown-heading" dir="auto"><h1 tabindex="-1" class="heading-element" dir="auto" _msttexthash="61424350" _msthash="308">最后，让我们将嵌入解码为 Token 值</h1><a id="user-content-finally-lets-decode-the-embedding-into-the-token-value" class="anchor" aria-label="永久链接：最后，让我们将 embedding 解码为 token 值" href="#finally-lets-decode-the-embedding-into-the-token-value" _mstaria-label="2736435" _msthash="309"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
 <div dir="auto">
-    <a target="_blank" rel="noopener noreferrer" href="/naklecha/llama3-from-scratch/blob/main/images/finallayer.png"><img src="/naklecha/llama3-from-scratch/raw/main/images/finallayer.png" width="600px" style="max-width: 100%;"></a>
+    <a target="_blank" rel="noopener noreferrer" href="https://github.com/naklecha/llama3-from-scratch/blob/main/images/finallayer.png"><img src="https://github.com/naklecha/llama3-from-scratch/raw/main/images/finallayer.png" width="600px" style="max-width: 100%;"></a>
 </div><font _mstmutation="1" _msttexthash="106751385" _msthash="310">我们将使用 output 解码器将最终的 embedding 转换为 token</font><div class="highlight highlight-source-python notranslate position-relative overflow-auto" dir="auto"><pre><span class="pl-s1">model</span>[<span class="pl-s">"output.weight"</span>].<span class="pl-s1">shape</span></pre><div class="zeroclipboard-container">
     <clipboard-copy aria-label="Copy" class="ClipboardButton btn btn-invisible js-clipboard-copy m-2 p-0 d-flex flex-justify-center flex-items-center" data-copy-feedback="Copied!" data-tooltip-direction="w" value="model[&quot;output.weight&quot;].shape" tabindex="0" role="button">
       <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-copy js-clipboard-copy-icon">
@@ -817,64 +767,28 @@ logits.shape" tabindex="0" role="button">
   </div></div>
 <div class="snippet-clipboard-content notranslate position-relative overflow-auto"><pre class="notranslate"><code>torch.Size([128256])
 </code></pre><div class="zeroclipboard-container">
-    <clipboard-copy aria-label="Copy" class="ClipboardButton btn btn-invisible js-clipboard-copy m-2 p-0 d-flex flex-justify-center flex-items-center" data-copy-feedback="Copied!" data-tooltip-direction="w" value="torch.Size([128256])" tabindex="0" role="button">
-      <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-copy js-clipboard-copy-icon">
-    <path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"></path><path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path>
-</svg>
-      <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-check js-clipboard-check-icon color-fg-success d-none">
-    <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"></path>
-</svg>
-    </clipboard-copy>
+   
   </div></div>
 <div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto" _msttexthash="211758456" _msthash="314">模型预测代币编号 2983 作为下一个代币，这是 42 的代币编号吗？</h3><a id="user-content-the-model-predicted-token-number-2983-as-the-next-token-is-this-the-token-number-for-42" class="anchor" aria-label="永久链接：模型预测 Token 编号 2983 作为下一个 Token，这是 42 的 Token 编号吗？" href="#the-model-predicted-token-number-2983-as-the-next-token-is-this-the-token-number-for-42" _mstaria-label="5227495" _msthash="315"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
 <p dir="auto" _msttexthash="147686513" _msthash="316">我提醒你，这是最后一部分代码，希望你:)玩得开心</p>
 <div class="highlight highlight-source-python notranslate position-relative overflow-auto" dir="auto"><pre><span class="pl-s1">next_token</span> <span class="pl-c1">=</span> <span class="pl-s1">torch</span>.<span class="pl-en">argmax</span>(<span class="pl-s1">logits</span>, <span class="pl-s1">dim</span><span class="pl-c1">=</span><span class="pl-c1">-</span><span class="pl-c1">1</span>)
 <span class="pl-s1">next_token</span></pre><div class="zeroclipboard-container">
-    <clipboard-copy aria-label="Copy" class="ClipboardButton btn btn-invisible js-clipboard-copy m-2 p-0 d-flex flex-justify-center flex-items-center" data-copy-feedback="Copied!" data-tooltip-direction="w" value="next_token = torch.argmax(logits, dim=-1)
-next_token" tabindex="0" role="button">
-      <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-copy js-clipboard-copy-icon">
-    <path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"></path><path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path>
-</svg>
-      <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-check js-clipboard-check-icon color-fg-success d-none">
-    <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"></path>
-</svg>
-    </clipboard-copy>
+    
   </div></div>
 <div class="snippet-clipboard-content notranslate position-relative overflow-auto"><pre class="notranslate"><code>tensor(2983)
 </code></pre><div class="zeroclipboard-container">
-    <clipboard-copy aria-label="Copy" class="ClipboardButton btn btn-invisible js-clipboard-copy m-2 p-0 d-flex flex-justify-center flex-items-center" data-copy-feedback="Copied!" data-tooltip-direction="w" value="tensor(2983)" tabindex="0" role="button">
-      <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-copy js-clipboard-copy-icon">
-    <path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"></path><path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path>
-</svg>
-      <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-check js-clipboard-check-icon color-fg-success d-none">
-    <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"></path>
-</svg>
-    </clipboard-copy>
+    
   </div></div>
-<div class="markdown-heading" dir="auto"><h1 tabindex="-1" class="heading-element" dir="auto" _msttexthash="11422697" _msthash="317">我们走吧</h1><a id="user-content-lets-fucking-go" class="anchor" aria-label="永久链接：我们他妈的走吧" href="#lets-fucking-go" _mstaria-label="563849" _msthash="318"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<div class="markdown-heading" dir="auto"><h1 tabindex="-1" class="heading-element" dir="auto" _msttexthash="11422697" _msthash="317">Let's  GO GO </h1><a id="user-content-lets-fucking-go" class="anchor" aria-label="永久链接：我们他妈的走吧" href="#lets-fucking-go" _mstaria-label="563849" _msthash="318"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
 <div dir="auto">
-    <a target="_blank" rel="noopener noreferrer" href="/naklecha/llama3-from-scratch/blob/main/images/42.png"><img src="/naklecha/llama3-from-scratch/raw/main/images/42.png" width="600px" style="max-width: 100%;"></a>
+    <a target="_blank" rel="noopener noreferrer" href="https://github.com/naklecha/llama3-from-scratch/blob/main/images/42.png"><img src="https://github.com/naklecha/llama3-from-scratch/raw/main/images/42.png" width="600px" style="max-width: 100%;"></a>
 </div>
 <div class="highlight highlight-source-python notranslate position-relative overflow-auto" dir="auto"><pre><span class="pl-s1">tokenizer</span>.<span class="pl-en">decode</span>([<span class="pl-s1">next_token</span>.<span class="pl-en">item</span>()])</pre><div class="zeroclipboard-container">
-    <clipboard-copy aria-label="Copy" class="ClipboardButton btn btn-invisible js-clipboard-copy m-2 p-0 d-flex flex-justify-center flex-items-center" data-copy-feedback="Copied!" data-tooltip-direction="w" value="tokenizer.decode([next_token.item()])" tabindex="0" role="button">
-      <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-copy js-clipboard-copy-icon">
-    <path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"></path><path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path>
-</svg>
-      <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-check js-clipboard-check-icon color-fg-success d-none">
-    <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"></path>
-</svg>
-    </clipboard-copy>
+   
   </div></div>
 <div class="snippet-clipboard-content notranslate position-relative overflow-auto"><pre class="notranslate"><code>'42'
 </code></pre><div class="zeroclipboard-container">
-    <clipboard-copy aria-label="Copy" class="ClipboardButton btn btn-invisible js-clipboard-copy m-2 p-0 d-flex flex-justify-center flex-items-center" data-copy-feedback="Copied!" data-tooltip-direction="w" value="'42'" tabindex="0" role="button">
-      <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-copy js-clipboard-copy-icon">
-    <path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"></path><path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path>
-</svg>
-      <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-check js-clipboard-check-icon color-fg-success d-none">
-    <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"></path>
-</svg>
-    </clipboard-copy>
+    
   </div></div>
 <div class="markdown-heading" dir="auto"><h1 tabindex="-1" class="heading-element" dir="auto" _msttexthash="29463824" _msthash="319">谢谢你，我爱你:)</h1><a id="user-content-thank-you-i-love-you-" class="anchor" aria-label="永久链接：谢谢你，我爱你:)" href="#thank-you-i-love-you-" _mstaria-label="784147" _msthash="320"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
 <p dir="auto" _msttexthash="84856577" _msthash="321">这就是结束。希望您喜欢阅读它！</p>
@@ -890,6 +804,6 @@ next_token" tabindex="0" role="button">
 <p dir="auto" _msttexthash="8744606" _msthash="329">A10 推特 - <a href="https://twitter.com/aaaaaaaaaaorg" rel="nofollow" _istranslated="1">https://twitter.com/aaaaaaaaaaorg</a></p>
 <p dir="auto" _msttexthash="26490100" _msthash="330">我们的论文：</p>
 <div dir="auto">
-    <a target="_blank" rel="noopener noreferrer" href="/naklecha/llama3-from-scratch/blob/main/images/a10.png"><img src="/naklecha/llama3-from-scratch/raw/main/images/a10.png" width="600px" style="max-width: 100%;"></a>
+    <a target="_blank" rel="noopener noreferrer" href="https://github.com/naklecha/llama3-from-scratch/blob/main/images/a10.png"><img src="https://github.com/naklecha/llama3-from-scratch/raw/main/images/a10.png" width="600px" style="max-width: 100%;"></a>
 </div>
 </article></div>
